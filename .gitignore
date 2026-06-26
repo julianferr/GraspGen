@@ -88,3 +88,5 @@ logs/*
 cache/
 misc/*
 data/*
+
+GraspGenModels/
