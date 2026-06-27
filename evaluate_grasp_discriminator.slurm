@@ -16,7 +16,7 @@ set -euo pipefail
 echo "Running on host: $(hostname)"
 echo "Job ID: ${SLURM_JOB_ID:-manual}"
 
-cd ~/GraspGen
+cd ~/GraspGen-fork
 
 mkdir -p tmp outputs/discriminator_${SLURM_JOB_ID:-manual}
 
