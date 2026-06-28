@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import numpy as np
+import omegaconf
 import torch
 import trimesh
 import trimesh.transformations as tra
@@ -8,6 +9,7 @@ import trimesh.transformations as tra
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+CONFIG_PATH = REPO_ROOT / "scripts/config.yaml"
 MESH_PATH = REPO_ROOT / "GraspGenModels/sample_data/meshes/mug.obj"
 MESH_SCALE = 1.0
 NUM_SAMPLE_POINTS = 2024
@@ -53,9 +55,10 @@ grasps = np.array([T_subtract_pc_mean @ grasp for grasp in GRASPS], dtype=np.flo
 grasps[:, 3, :] = np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float32)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+cfg = omegaconf.OmegaConf.load(CONFIG_PATH)
 
 from grasp_gen.models.discriminator import GraspGenDiscriminator
-model = GraspGenDiscriminator().to(device)
+model = GraspGenDiscriminator.from_config(cfg.discriminator).to(device)
 
 if CHECKPOINT is not None and str(CHECKPOINT).lower() != "null":
     ckpt = torch.load(str(CHECKPOINT), map_location="cpu")
