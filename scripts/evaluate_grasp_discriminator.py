@@ -4,7 +4,6 @@ import numpy as np
 import omegaconf
 import torch
 import trimesh
-import trimesh.transformations as tra
 
 
 
@@ -55,12 +54,15 @@ object_mesh.apply_scale(MESH_SCALE)
 point_cloud, _ = trimesh.sample.sample_surface(object_mesh, NUM_SAMPLE_POINTS)
 point_cloud = np.asarray(point_cloud, dtype=np.float32)
 
-T_subtract_pc_mean = tra.translation_matrix(-point_cloud.mean(axis=0))
-point_cloud = tra.transform_points(point_cloud, T_subtract_pc_mean).astype(np.float32)
-grasps = np.array([T_subtract_pc_mean @ grasp for grasp in GRASPS], dtype=np.float32)
-grasps[:, 3, :] = np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float32)
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+point_cloud = torch.from_numpy(point_cloud).to(device).float()
+point_cloud_center = point_cloud.mean(dim=0)
+point_cloud = (point_cloud - point_cloud_center[None]).contiguous()
+
+grasps = torch.from_numpy(GRASPS).to(device).float()
+grasps[:, :3, 3] -= point_cloud_center
+grasps[:, 3, :] = torch.tensor([0.0, 0.0, 0.0, 1.0], device=device)
+grasps = grasps.contiguous()
 
 from grasp_gen.models.discriminator import GraspGenDiscriminator
 model = GraspGenDiscriminator.from_config(cfg.discriminator).to(device)
@@ -74,8 +76,8 @@ else:
 
 model.eval()
 data = {
-    "points": torch.from_numpy(point_cloud).unsqueeze(0).to(device),
-    "grasps": torch.from_numpy(grasps).unsqueeze(0).to(device),
+    "points": point_cloud.unsqueeze(0).contiguous(),
+    "grasps": grasps.unsqueeze(0).contiguous(),
 }
 
 with torch.inference_mode():
