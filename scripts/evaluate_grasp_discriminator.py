@@ -9,11 +9,8 @@ import trimesh.transformations as tra
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CONFIG_PATH = REPO_ROOT / "scripts/config.yaml"
+CONFIG_PATH = REPO_ROOT / "GraspGenModels/checkpoints/graspgen_franka_panda.yml"
 MESH_PATH = REPO_ROOT / "GraspGenModels/sample_data/meshes/mug.obj"
-MESH_SCALE = 1.0
-NUM_SAMPLE_POINTS = 2024
-CHECKPOINT = REPO_ROOT / "GraspGenModels/checkpoints/graspgen_franka_panda_dis.pth"
 
 GRASPS = np.array(
     [
@@ -39,6 +36,15 @@ GRASPS = np.array(
     dtype=np.float32,
 )
 
+cfg = omegaconf.OmegaConf.load(CONFIG_PATH)
+MESH_SCALE = cfg.obj.scale
+NUM_SAMPLE_POINTS = cfg.obj.num_sample_points
+CHECKPOINT = CONFIG_PATH.parent / cfg.discriminator.checkpoint
+if cfg.discriminator.checkpoint_object_encoder_pretrained is not None:
+    cfg.discriminator.checkpoint_object_encoder_pretrained = str(
+        CONFIG_PATH.parent / cfg.discriminator.checkpoint_object_encoder_pretrained
+    )
+
 if not MESH_PATH.exists():
     raise FileNotFoundError(f"Mesh file does not exist: {MESH_PATH}")
 if not CHECKPOINT.exists():
@@ -55,7 +61,6 @@ grasps = np.array([T_subtract_pc_mean @ grasp for grasp in GRASPS], dtype=np.flo
 grasps[:, 3, :] = np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float32)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-cfg = omegaconf.OmegaConf.load(CONFIG_PATH)
 
 from grasp_gen.models.discriminator import GraspGenDiscriminator
 model = GraspGenDiscriminator.from_config(cfg.discriminator).to(device)
